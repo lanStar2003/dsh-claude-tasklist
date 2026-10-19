@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4173", "--bind", "127.0.0.1"],
+      "port": 4173
+    },
+    {
+      "name": "mock-llm",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dev/mock-llm.mjs", "8765"],
+      "port": 8765
+    },
+    {
+      "name": "dsh-web-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=.dev/dev.env",
+        ".dev/runtime/node_modules/@deepseek-ai/dsh/lib/bin.js",
+        "web",
+        "--no-open",
+        "--port",
+        "3080"
+      ],
+      "port": 3080
+    }
+  ]
+}

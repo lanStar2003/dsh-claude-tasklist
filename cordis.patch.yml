@@ -1,0 +1,17 @@
+# dsh-tasklist bundle layer.
+- insert:
+    - id: dsh-tasklist
+      name: dsh-tasklist
+      config:
+        # Hide dsh's own todo_write from the model so it keeps one list, not two.
+        hideBuiltinTodo: true
+
+# Stepping through a plan calls `update_plan {"advance": true}` several times in a
+# row by design; keep the repeat-call reminder from flagging it. A patch replaces
+# the whole row config, so the shipped values are restated here.
+- id: repeat-tool-reminder
+  name: '@deepseek-ai/dsh-repeat-tool-reminder'
+  config:
+    thresholds: [3, 5, 8]
+    argumentsPreviewChars: 500
+    exclude: [update_plan]

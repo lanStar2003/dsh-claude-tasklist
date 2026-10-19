@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task list preview</title>
+<link rel="stylesheet" href="../src/client/tasklist.css">
+<style>
+  body { margin: 0; padding: 40px 0; background: #fcfcfb; font-family: "Segoe UI", system-ui, sans-serif; }
+  body.dark { background: #1f1e1d; }
+  .col { width: 768px; margin: 0 auto; }
+  .note { font: 12px/1.4 system-ui; color: #999; margin: 24px 0 4px; }
+</style>
+</head>
+<body>
+<div class="col" id="app"></div>
+<script type="module">
+  import { ICON_PATHS, WAIT_RING } from '../src/client/icons.js'
+  const dark = new URLSearchParams(location.search).has('dark')
+  if (dark) document.body.classList.add('dark')
+  const svg = (inner, cls, box = 24) =>
+    `<svg class="${cls}" viewBox="0 0 ${box} ${box}" aria-hidden="true">${inner}</svg>`
+  const list = (steps) => `<div class="dtl-card"><ul class="dtl-steps">${steps
+    .map(([status, text]) => `<li class="dtl-step" data-status="${status}">${svg(ICON_PATHS[status], 'dtl-icon')}<span class="dtl-step-text">${text}</span></li>`)
+    .join('')}</ul></div>`
+  const box = (recap, ask, actions) => `<div class="dtl-box"><p class="dtl-recap">${recap}</p>${ask ? `<div class="dtl-ask-row"><p class="dtl-ask">${ask}</p><div class="dtl-actions">${actions
+    .map((a, i) => `<button class="dtl-btn ${i === 0 ? 'dtl-btn-primary' : 'dtl-btn-secondary'}">${a}</button>`).join('')}</div></div>` : ''}</div>`
+  const wait = `<div class="dtl-wait">${svg(WAIT_RING, 'dtl-wait-ring', 16)}<span class="dtl-wait-label">需要您的输入</span></div>`
+  document.getElementById('app').innerHTML = `<div class="dtl-root${dark ? ' dtl-dark' : ''}">
+    <div class="note">进行中（对照原版截图）</div>
+    ${list([['in_progress', 'Pull DeepSeek Harness and study its plugin system'], ['pending', 'Pin down the Claude task list UI and behavior'], ['pending', 'Design the dsh task-list plugin'], ['pending', 'Implement the plugin'], ['pending', 'Install into dsh and verify in a session']])}
+    ${wait}
+    <div class="note">全部完成 + 下一步框（带问题）</div>
+    ${list([['completed', 'Look at dsh and its plugin system'], ['completed', 'Implement the plugin'], ['completed', 'Install into dsh and verify']])}
+    ${box('任务清单插件已装进 dsh 并在会话里跑通。下一步框的暗色主题还没有对照截图核对。', '现在提交吗？', ['提交', '先不提交'])}
+    ${wait}
+    <div class="note">只有总结</div>
+    ${box('已修好输入框的换行问题，单元测试全部通过。', '', [])}
+  </div>`
+</script>
+</body>
+</html>

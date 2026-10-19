@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Claude-style task list",
+    "description": "A live task list under the latest message while the model works, and a recap with next-step buttons when a turn ends."
+  }
+}

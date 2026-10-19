@@ -1,0 +1,267 @@
+/*
+ * Task list + next-step box, measured from Claude Code desktop (light theme, DPR 1.5).
+ * See docs/SPEC.md §2 for the measurements behind each value.
+ */
+.dtl-root {
+  --dtl-fg: #0b0b0b;
+  --dtl-fg-muted: #898781;
+  --dtl-border: #e3e3e2;
+  /* Claude's card is see-through on its page; here it matches dsh's page so the
+     docked copy can float over the transcript without showing text through. */
+  --dtl-surface: var(--dsw-alias-bg-base, #fcfcfb);
+  --dtl-btn-bg: #0b0b0b;
+  --dtl-btn-fg: #ffffff;
+  --dtl-btn2-bg: #fcfcfb;
+  --dtl-btn2-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --dtl-wait-ring: #f0ac55;
+  --dtl-wait-bg: #f9dca4;
+  --dtl-wait-fg: #734500;
+  --dtl-radius: 9px;
+  --dtl-btn-radius: 5px;
+  --dtl-font-size: 14px;
+  --dtl-row-height: 26px;
+  --dtl-icon: 14px;
+
+  color: var(--dtl-fg);
+  font-size: var(--dtl-font-size);
+  -webkit-font-smoothing: antialiased;
+}
+
+body[data-ds-dark-theme] .dtl-root,
+.dtl-root.dtl-dark {
+  --dtl-fg: #ececea;
+  --dtl-fg-muted: #8f8d87;
+  --dtl-border: #3a3a38;
+  --dtl-btn-bg: #ececea;
+  --dtl-btn-fg: #121212;
+  --dtl-btn2-bg: transparent;
+  --dtl-btn2-shadow: none;
+  --dtl-wait-ring: #e39b45;
+  --dtl-wait-bg: #4a3517;
+  --dtl-wait-fg: #f5c77e;
+}
+
+/* ---------- hidden bookkeeping calls ---------- */
+
+/* The flow item that holds an update_plan / wrap_up row (see HiddenToolRow). */
+[data-chat-flow-kind]:has([data-dtl-hidden-call]) {
+  display: none !important;
+}
+
+/* A "tools called" group whose every item is such a row (marked by index.jsx). */
+[data-step-process][data-dtl-hidden-group] {
+  display: none !important;
+}
+
+/* ---------- placement ---------- */
+
+/* Same width as dsh's own dock strips (see ui-conversation TodoPanel). */
+.dtl-dock {
+  box-sizing: border-box;
+  flex: none;
+  margin: 0 auto;
+  width: calc(100% - 2 * var(--dsh-composer-side-clearance, 0px) - 4 * var(--dsh-composer-dock-inset, 0px));
+  max-width: calc(var(--dsh-composer-card-max-width, 100%) - 4 * var(--dsh-composer-dock-inset, 0px));
+}
+
+.dtl-dock .dtl-card {
+  margin: 0;
+}
+
+.dtl-tail > :first-child {
+  margin-top: 0;
+}
+
+.dtl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- task list card ---------- */
+
+.dtl-card {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border: 1px solid var(--dtl-border);
+  border-radius: var(--dtl-radius);
+  background: var(--dtl-surface);
+}
+
+.dtl-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dtl-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--dtl-row-height);
+  line-height: var(--dtl-row-height);
+}
+
+.dtl-step-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dtl-icon {
+  flex: none;
+  width: var(--dtl-icon);
+  height: var(--dtl-icon);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dtl-step[data-status='pending'] .dtl-icon {
+  color: var(--dtl-fg-muted);
+}
+
+/* ---------- waiting-for-input chip ---------- */
+
+.dtl-wait {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 0 6px;
+}
+
+.dtl-wait-ring {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--dtl-wait-ring);
+}
+
+.dtl-wait-label {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--dtl-wait-bg);
+  color: var(--dtl-wait-fg);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* ---------- next-step box ---------- */
+
+.dtl-box {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border: 1px solid var(--dtl-border);
+  border-radius: var(--dtl-radius);
+  background: var(--dtl-surface);
+  line-height: 22px;
+}
+
+.dtl-recap {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dtl-ask-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dtl-border);
+}
+
+.dtl-ask {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dtl-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.dtl-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 23px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--dtl-btn-radius);
+  font: inherit;
+  font-size: 13px;
+  line-height: 21px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dtl-btn-primary {
+  background: var(--dtl-btn-bg);
+  color: var(--dtl-btn-fg);
+}
+
+.dtl-btn-secondary {
+  border-color: var(--dtl-border);
+  background: var(--dtl-btn2-bg);
+  box-shadow: var(--dtl-btn2-shadow);
+  color: var(--dtl-fg);
+}
+
+.dtl-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+body[data-ds-dark-theme] .dtl-btn:hover:not(:disabled),
+.dtl-dark .dtl-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.dtl-btn:focus-visible {
+  outline: 2px solid var(--dtl-wait-ring);
+  outline-offset: 1px;
+}
+
+.dtl-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.dtl-btn[data-chosen='true'] {
+  opacity: 1;
+}
+
+.dtl-error {
+  margin: 8px 0 0;
+  color: #b3261e;
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dtl-card,
+  .dtl-box {
+    animation: dtl-in 160ms ease-out;
+  }
+}
+
+@keyframes dtl-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
