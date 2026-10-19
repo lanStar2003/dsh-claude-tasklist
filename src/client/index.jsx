@@ -4,9 +4,10 @@
 // - Once the turn ends, its final list, next-step box and waiting chip are drawn
 //   at the end of that turn (conversation.chat.turnTail), and stay there.
 // - The update_plan / wrap_up tool-call rows are hidden from the transcript, and so
-//   are the host's "keep the list moving" notes (context rows from producer `tasklist`).
+//   are code-mode run_code rows whose program only calls them, and the host's
+//   "keep the list moving" notes (context rows from producer `tasklist`).
 
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import css from './tasklist.css'
 import { NextStepBox, TaskListCard, WaitChip } from './components.jsx'
 import { NS, en, zh } from './locales.js'
@@ -62,13 +63,16 @@ export function apply(ctx) {
     }
   })
 
-  ctx.effect(() => hideReminderRows(), `${PLUGIN_ID}: hide reminder notes`)
+  ctx.effect(() => watchTranscript(), `${PLUGIN_ID}: hide reminder notes and bookkeeping run_code rows`)
 }
 
 /** The running turn's list, pinned above the composer. */
 function LiveListDock({ useProjection, useSession, t }) {
   const state = useProjection(PROJECTION_KEY)
   const running = useSession((s) => s.running)
+  // The dock is mounted for as long as the conversation is shown, so it feeds the
+  // session's bookkeeping run_code calls to the transcript watcher.
+  useEffect(() => noteQuietCalls(state?.quiet), [state?.quiet])
   if (!state || !running || state.currentTurn === null) return null
   const entry = state.turns.find((e) => e.turn === state.currentTurn)
   if (!entry || entry.steps.length === 0) return null
@@ -116,36 +120,74 @@ function HiddenToolRow() {
   return <span ref={ref} data-dtl-hidden-call="" hidden />
 }
 
+const GROUP = '[data-step-process]'
+const ITEM = '[data-chat-flow-kind]'
+const CALL_ROW = '[data-chat-call-id]'
+const REMINDER_LABEL = '[data-context-source]'
+const HIDDEN_GROUP_ATTR = 'data-dtl-hidden-group'
+const HIDDEN_ITEM_ATTR = 'data-dtl-hidden-item'
+const watchedGroups = new WeakMap()
+
+/** run_code calls whose program only calls update_plan / wrap_up (from the projection). */
+const quietCalls = new Set()
+
 /**
- * Context rows have no per-producer slot, so mark the label of each reminder row as
- * it mounts; tasklist.css then drops the row's flow item like a hidden tool row.
+ * Context rows have no per-producer slot and run_code rows no per-program one, so
+ * rows are marked as they mount: a reminder note's label gets the hidden-call
+ * marker, a bookkeeping run_code's flow item gets HIDDEN_ITEM_ATTR; tasklist.css
+ * drops both.
  */
-function hideReminderRows() {
+function watchTranscript() {
   if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return undefined
-  const LABEL = '[data-context-source]'
-  const mark = (label) => {
-    if (label.textContent === REMINDER_KIND) label.setAttribute('data-dtl-hidden-call', '')
-  }
-  const scan = (node) => {
-    if (node.nodeType !== 1) return
-    if (node.matches(LABEL)) mark(node)
-    else if (node.firstElementChild) node.querySelectorAll(LABEL).forEach(mark)
-  }
   const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) mutation.addedNodes.forEach(scan)
+    for (const mutation of mutations) mutation.addedNodes.forEach(scanNode)
   })
   observer.observe(document.body, { childList: true, subtree: true })
-  scan(document.body)
+  scanNode(document.body)
   return () => observer.disconnect()
 }
 
-const GROUP = '[data-step-process]'
-const ITEM = '[data-chat-flow-kind]'
-const HIDDEN_GROUP_ATTR = 'data-dtl-hidden-group'
-const watchedGroups = new WeakMap()
+function scanNode(node) {
+  if (node.nodeType !== 1) return
+  for (const label of matching(node, REMINDER_LABEL)) {
+    if (label.textContent === REMINDER_KIND) label.setAttribute('data-dtl-hidden-call', '')
+  }
+  if (quietCalls.size === 0) return
+  for (const row of matching(node, CALL_ROW)) {
+    if (quietCalls.has(row.getAttribute('data-chat-call-id'))) hideItemOf(row)
+  }
+}
 
-/** Mirrors tasklist.css: a code-mode run_code item is never hidden as a whole. */
-const isHiddenItem = (item) => item.querySelector('[data-dtl-hidden-call]') !== null && item.querySelector('[data-subcalls]') === null
+function matching(node, selector) {
+  if (node.matches(selector)) return [node]
+  return node.firstElementChild ? node.querySelectorAll(selector) : []
+}
+
+function noteQuietCalls(ids) {
+  if (!Array.isArray(ids) || typeof document === 'undefined') return
+  for (const id of ids) {
+    if (quietCalls.has(id)) continue
+    quietCalls.add(id)
+    // The row may already be on screen: the call is logged once the program is complete.
+    document.querySelectorAll(`[data-chat-call-id="${CSS.escape(id)}"]`).forEach(hideItemOf)
+  }
+}
+
+function hideItemOf(row) {
+  const item = row.closest(ITEM)
+  if (!item || item.hasAttribute(HIDDEN_ITEM_ATTR)) return
+  item.setAttribute(HIDDEN_ITEM_ATTR, '')
+  const group = item.closest(GROUP)
+  if (group) refreshGroup(group)
+}
+
+/**
+ * Mirrors tasklist.css: an item marked as bookkeeping, or one holding a hidden call
+ * row, except a code-mode run_code item, which may do real work besides.
+ */
+const isHiddenItem = (item) =>
+  item.hasAttribute(HIDDEN_ITEM_ATTR) ||
+  (item.querySelector('[data-dtl-hidden-call]') !== null && item.querySelector('[data-subcalls]') === null)
 
 function refreshGroup(group) {
   const items = group.querySelectorAll(ITEM)

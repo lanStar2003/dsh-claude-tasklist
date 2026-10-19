@@ -34,7 +34,7 @@ const REMINDER_KIND = 'tasklist'
 const PLAN_TOOLS = new Set(['update_plan', 'wrap_up'])
 
 const PROJECTION_KEY = 'tasklist'
-const STATE_VERSION = 2
+const STATE_VERSION = 3
 const stateSchema = { parse: parseState }
 const textResult = { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] }
 

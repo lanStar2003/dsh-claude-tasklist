@@ -54,6 +54,11 @@ body[data-ds-dark-theme] .dtl-root,
   display: none !important;
 }
 
+/* A run_code item whose program only calls update_plan / wrap_up (see index.jsx). */
+[data-chat-flow-kind][data-dtl-hidden-item] {
+  display: none !important;
+}
+
 /* A "tools called" group whose every item is such a row (marked by index.jsx). */
 [data-step-process][data-dtl-hidden-group] {
   display: none !important;

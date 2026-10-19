@@ -17,23 +17,32 @@ import {
   normalizeWrapUp,
   STATUSES,
 } from './plan.js'
+import { isBookkeepingProgram } from './bookkeeping.js'
 
 export const TOOL_NAMES = ['update_plan', 'wrap_up']
 
 /** How many turns with a plan or box the projection keeps (oldest dropped first). */
 export const MAX_TURNS = 100
 
+/** How many quiet run_code call ids the projection keeps (oldest dropped first). */
+export const MAX_QUIET = 200
+
+/** The code-mode transport whose programs may be pure bookkeeping. */
+const RUN_CODE = 'run_code'
+
 /**
  * @typedef {import('./plan.js').Step} Step
  * @typedef {{ recap: string, ask?: string, actions: { label: string, message: string }[], blocked: boolean }} WrapUp
  * @typedef {{ turn: number, steps: Step[], scope?: string, wrapUp?: WrapUp, reply?: string }} TurnEntry
  * @typedef {{ name: string, args: string, turn: number }} PendingCall
- * @typedef {{ currentTurn: number | null, awaitingReplyTurn: number | null, pending: Record<string, PendingCall>, turns: TurnEntry[] }} TasklistState
+ * @typedef {{ currentTurn: number | null, awaitingReplyTurn: number | null, pending: Record<string, PendingCall>, turns: TurnEntry[], quiet: string[] }} TasklistState
+ * `quiet` lists run_code calls whose program only updates the list or the box; the
+ * web client hides their rows like direct update_plan / wrap_up rows.
  */
 
 /** @returns {TasklistState} */
 export function initialState() {
-  return { currentTurn: null, awaitingReplyTurn: null, pending: {}, turns: [] }
+  return { currentTurn: null, awaitingReplyTurn: null, pending: {}, turns: [], quiet: [] }
 }
 
 // ---------- the two tools' rules, shared by execute() and the fold ----------
@@ -95,6 +104,7 @@ export function foldEvent(state, event) {
       }
     }
     case 'tool/call': {
+      if (data?.name === RUN_CODE && typeof data.callId === 'string') return noteQuietCall(state, data)
       if (!TOOL_NAMES.includes(data?.name) || typeof data.callId !== 'string') return state
       const turn = Number.isInteger(data.turn) ? data.turn : state.currentTurn ?? 0
       const args = typeof data.arguments === 'string' ? data.arguments : JSON.stringify(data.arguments ?? {})
@@ -117,6 +127,15 @@ export function foldEvent(state, event) {
     default:
       return state
   }
+}
+
+function noteQuietCall(state, data) {
+  const args = typeof data.arguments === 'string' ? parseArgs(data.arguments) : data.arguments
+  if (!isBookkeepingProgram(args?.code)) return state
+  const quiet = state.quiet ?? []
+  if (quiet.includes(data.callId)) return state
+  const next = [...quiet, data.callId]
+  return { ...state, quiet: next.length > MAX_QUIET ? next.slice(next.length - MAX_QUIET) : next }
 }
 
 function replay(state, name, args, turn) {
@@ -197,6 +216,9 @@ export function parseState(value) {
   }
   if (value.pending === null || typeof value.pending !== 'object' || Array.isArray(value.pending)) {
     throw new TypeError('tasklist projection: malformed pending calls')
+  }
+  if (value.quiet !== undefined && !(Array.isArray(value.quiet) && value.quiet.every((id) => typeof id === 'string'))) {
+    throw new TypeError('tasklist projection: malformed quiet calls')
   }
   for (const entry of value.turns) {
     if (!Number.isInteger(entry?.turn) || !validSteps(entry.steps)) {
