@@ -22,7 +22,17 @@ await build({
   target: 'es2022',
   jsx: 'automatic',
   external: SHARED,
-  loader: { '.css': 'text' },
+  // CSS is embedded as text; normalize line endings so a Windows checkout (CRLF)
+  // builds the same lib/client.js as CI does.
+  plugins: [{
+    name: 'css-text-lf',
+    setup(b) {
+      b.onLoad({ filter: /\.css$/ }, (args) => ({
+        contents: readFileSync(args.path, 'utf8').replace(/\r\n?/g, '\n'),
+        loader: 'text',
+      }))
+    },
+  }],
   define: { 'process.env.NODE_ENV': '"production"' },
   legalComments: 'none',
   banner: { js: `window.__ModuleLoader__.load({ id: ${JSON.stringify(name)}, factory: (require) => {\nvar module = { exports: {} }; var exports = module.exports;` },
