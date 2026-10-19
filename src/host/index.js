@@ -1,67 +1,49 @@
 // dsh host half: the `update_plan` and `wrap_up` tools, the `tasklist` session
 // projection the web client renders, and the system-prompt guidance.
+//
+// The tools write nothing of their own to the session log: the projection replays
+// their successful calls from the durable tool events (see core/state.js), so the
+// list survives reloads on every dsh 0.2.x, including builds without plugin records.
 
-import Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { appendPluginRecord, pluginRecordOf } from '@deepseek-ai/dsh-session'
-import {
-  PlanError,
-  SCOPES,
-  STATUSES,
-  applyUpdatePlan,
-  checkOffAll,
-  describePlan,
-  describeWrapUp,
-  emptyPlan,
-  normalizeWrapUp,
-} from '../core/plan.js'
-import {
-  PLAN_RECORD,
-  WRAP_UP_RECORD,
-  entryForTurn,
-  foldEvent,
-  initialState,
-  jsonRecord,
-  latestOpenPlan,
-  parseState,
-} from '../core/state.js'
+import { PlanError, SCOPES, STATUSES } from '../core/plan.js'
+import { initialState, foldEvent, parseState, updatePlanStep, wrapUpStep } from '../core/state.js'
 import { SYSTEM_PROMPT_SECTION, UPDATE_PLAN_DESCRIPTION, WRAP_UP_DESCRIPTION } from '../core/prompt.js'
 
 export const name = 'tasklist'
 export const inject = ['tools', 'sessionProjections', 'systemPrompt']
 
-export const Config = Schema.object({
-  hideBuiltinTodo: Schema.boolean()
-    .default(true)
-    .description('Hide dsh\'s own `todo_write` tool from the model so it keeps one list, not two.'),
-  promptOrder: Schema.number()
-    .default(2450)
-    .description('Where the task-list guidance sits among system-prompt sections.'),
-})
+const DEFAULTS = {
+  /** Hide dsh's own `todo_write` tool from the model so it keeps one list, not two. */
+  hideBuiltinTodo: true,
+  /** Where the task-list guidance sits among system-prompt sections. */
+  promptOrder: 2450,
+}
 
 const PROJECTION_KEY = 'tasklist'
-const STATE_VERSION = 1
+const STATE_VERSION = 2
 const stateSchema = { parse: parseState }
-
 const textResult = { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] }
 
-export function apply(ctx, config) {
+export function apply(ctx, rawConfig) {
+  const config = readConfig(rawConfig)
+
   ctx.sessionProjections.register({
     key: PROJECTION_KEY,
     stateVersion: STATE_VERSION,
     stateSchema,
     init: () => initialState(),
-    apply: (state, event) => foldEvent(state, event, pluginRecordOf),
+    apply: (state, event) => foldEvent(state, event),
     wire: { viewSchema: stateSchema, view: (state) => state },
   })
 
-  const sessionOf = (exec, tool) => {
+  /** The projection state and turn this call runs in. */
+  const contextOf = (exec, tool) => {
     const session = exec.agent?.session
     if (!session) throw new Error(`${tool} needs an agent session.`)
-    return session
+    const state = ctx.sessionProjections.stateOf(session, PROJECTION_KEY) ?? initialState()
+    return { state, turn: state.currentTurn ?? 0 }
   }
-  const currentTurn = (session) => ctx.sessionProjections.stateOf(session, 'turnBoundary')?.lastTurn ?? 0
-  const stateOf = (session) => ctx.sessionProjections.stateOf(session, PROJECTION_KEY) ?? initialState()
 
   ctx.tools.register(defineTool({
     name: 'update_plan',
@@ -90,15 +72,8 @@ export function apply(ctx, config) {
     },
     output: textResult,
     async execute(args, exec) {
-      const session = sessionOf(exec, 'update_plan')
-      const turn = currentTurn(session)
-      const state = stateOf(session)
-      // Ops without items in a fresh turn continue the last unfinished list.
-      const base = entryForTurn(state, turn) ?? (args.items === undefined ? latestOpenPlan(state, turn) : undefined)
-      const prev = base ? { steps: base.steps, scope: base.scope } : emptyPlan()
-      const next = guard(() => applyUpdatePlan(prev, args))
-      appendPluginRecord(session, PLAN_RECORD, jsonRecord({ turn, callId: exec.callId, scope: next.scope, steps: next.steps }))
-      return describePlan(next, args.items !== undefined)
+      const { state, turn } = contextOf(exec, 'update_plan')
+      return guard(() => updatePlanStep(state, args, turn).result)
     },
   }))
 
@@ -124,15 +99,11 @@ export function apply(ctx, config) {
     },
     output: textResult,
     async execute(args, exec) {
-      const session = sessionOf(exec, 'wrap_up')
-      const turn = currentTurn(session)
-      const box = guard(() => normalizeWrapUp(args))
-      const entry = entryForTurn(stateOf(session), turn)
-      const steps = entry && entry.steps.length > 0 ? checkOffAll(entry).steps : undefined
-      appendPluginRecord(session, WRAP_UP_RECORD, jsonRecord({ turn, callId: exec.callId, ...box, steps }))
+      const { state, turn } = contextOf(exec, 'wrap_up')
+      const step = guard(() => wrapUpStep(state, args, turn))
       // A box that asks something ends the turn right after this result.
-      if (box.ask) exec.concludeTurn()
-      return describeWrapUp(box)
+      if (step.ask) exec.concludeTurn()
+      return step.result
     },
   }))
 
@@ -150,6 +121,15 @@ export function apply(ctx, config) {
       return { ...assembly, tools: assembly.tools.filter((tool) => tool.name !== 'todo_write') }
     })
   }
+}
+
+function readConfig(raw) {
+  const config = { ...DEFAULTS }
+  if (raw && typeof raw === 'object') {
+    if (typeof raw.hideBuiltinTodo === 'boolean') config.hideBuiltinTodo = raw.hideBuiltinTodo
+    if (Number.isFinite(raw.promptOrder)) config.promptOrder = raw.promptOrder
+  }
+  return config
 }
 
 /** Turn rule violations into ordinary tool errors the model can correct. */

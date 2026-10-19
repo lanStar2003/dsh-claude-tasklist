@@ -10,7 +10,7 @@ import css from './tasklist.css'
 import { NextStepBox, TaskListCard, WaitChip } from './components.jsx'
 import { NS, en, zh } from './locales.js'
 
-const PLUGIN_ID = 'dsh-tasklist'
+const PLUGIN_ID = 'dsh-claude-tasklist'
 const PROJECTION_KEY = 'tasklist'
 const HIDDEN_TOOLS = ['update_plan', 'wrap_up']
 

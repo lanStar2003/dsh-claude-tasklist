@@ -1,4 +1,4 @@
-# dsh-tasklist：给 dsh 加上 Claude 风格的实时任务清单
+# dsh-claude-tasklist：给 dsh 加上 Claude 风格的实时任务清单
 
 这是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的插件，复刻 Claude Code 桌面版 Code 页的两个功能：
 
@@ -11,22 +11,30 @@
 
 要求：
 
-- dsh 0.2.1-rc.2 或之后的 0.2.x 版本
-- `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件）
+- dsh 0.2.0-rc.2 或之后的 0.2.x 版本（DSH Desktop 0.12.0 内置的就是 0.2.0-rc.2）
+- `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件；DSH Desktop 自带一份，在 `<dsh 主目录>\.desktop-bin`）
 
-把整个 `dsh-tasklist` 文件夹放到运行 dsh 的那台电脑上，然后执行（路径换成你放的位置）：
-
-```bash
-dsh plugin --profile web add D:/Code/dsh-tasklist
-```
-
-装好后重启 dsh。网页端代码 `lib/client.js` 已经构建好，目标电脑上不需要再构建。卸载：
+先打包，再从 tarball 安装：
 
 ```bash
-dsh plugin --profile web remove dsh-tasklist
+npm run build && pnpm pack --pack-destination dist
 ```
 
-如果平时启动的不是 `web` 这个 profile，把 `--profile web` 换成你用的那个。
+```bash
+dsh plugin --profile web add C:/path/to/dsh-claude-tasklist-0.2.0.tgz
+```
+
+装好后重启 dsh。卸载：
+
+```bash
+dsh plugin --profile web remove dsh-claude-tasklist
+```
+
+### 装进 DSH Desktop
+
+DSH Desktop 的 dsh 主目录是 `%APPDATA%\dsh-desktop\harness`，profile 是 `web`。命令行安装时把 `DSH_HOME` 设成这个目录，并把其中的 `.desktop-bin` 放到 PATH 最前面，让 Desktop 自带的 pnpm 来装。装好后完全退出 Desktop 再打开。
+
+注意：**不要用指向另一个盘的本地文件夹（`link:`）安装。** Desktop 自带的 pnpm 借 Electron 运行，跨盘建立的目录链接会损坏，而且坏链接在部分安全软件下删不掉，之后这个 profile 里的所有 pnpm 操作都会失败。tarball 安装是复制文件，没有这个问题。tarball 放在和 dsh 主目录同一个盘上最稳妥。
 
 ## 用起来是什么样
 
@@ -51,6 +59,12 @@ dsh plugin --profile web remove dsh-tasklist
 | 下一步框的应用按钮 | 有提交、开 PR、合并等按钮 | 只有回复按钮 | 那些是 Claude 桌面版自己的功能，dsh 没有对应能力 |
 | 下一步框的外观 | — | 按清单卡片和同屏按钮的测量值设计 | 目前没有原版下一步框的截图，拿到后再对齐 |
 
+和 [dsh-claude-style](https://github.com/Nwflower/dsh-claude-style) 主题一起用时，页面底色、字体（Inter）都跟随主题，清单与原版更接近。
+
+## 状态怎么保存
+
+插件不往会话日志里写任何自定义内容。清单和下一步框由会话里已经持久化的 `update_plan` / `wrap_up` 调用回放得出（包括 PTC 模式下在 `run_code` 里发起的调用），回放和工具执行共用同一套纯函数，所以刷新、重启、换版本都能原样恢复。这也让插件能跑在还没有“插件记录”接口的 dsh 0.2.0 上。
+
 尺寸、颜色、图标、行距都是从原版截图逐像素量出来的，详见 [docs/SPEC.md](docs/SPEC.md)。
 
 ## 设置
@@ -58,8 +72,8 @@ dsh plugin --profile web remove dsh-tasklist
 在 profile 的 `cordis.patch.yml` 里覆盖（整段 `config` 会被替换，所以要写全）：
 
 ```yaml
-- id: dsh-tasklist
-  name: dsh-tasklist
+- id: dsh-claude-tasklist
+  name: dsh-claude-tasklist
   config:
     hideBuiltinTodo: true   # 对模型隐藏 dsh 自带的 todo_write，避免两份清单
     promptOrder: 2450       # 使用说明在系统提示词里的位置

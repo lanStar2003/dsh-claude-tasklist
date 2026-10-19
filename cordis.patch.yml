@@ -1,7 +1,7 @@
-# dsh-tasklist bundle layer.
+# dsh-claude-tasklist bundle layer.
 - insert:
-    - id: dsh-tasklist
-      name: dsh-tasklist
+    - id: dsh-claude-tasklist
+      name: dsh-claude-tasklist
       config:
         # Hide dsh's own todo_write from the model so it keeps one list, not two.
         hideBuiltinTodo: true

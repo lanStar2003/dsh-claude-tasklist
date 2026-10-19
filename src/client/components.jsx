@@ -70,7 +70,6 @@ export function NextStepBox({ wrapUp, reply, canReply, onReply, t }) {
                 className={`dtl-btn ${index === 0 ? 'dtl-btn-primary' : 'dtl-btn-secondary'}`}
                 disabled={disabled}
                 data-chosen={chosen === index ? 'true' : undefined}
-                title={action.message !== action.label ? action.message : undefined}
                 onClick={() => click(index)}
               >
                 {action.label}
