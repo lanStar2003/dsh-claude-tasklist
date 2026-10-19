@@ -73,6 +73,25 @@ const SCENARIOS = [
     ],
   },
   {
+    // Works through step 1 for three model steps without moving the list, so the
+    // host's "keep the list moving" note arrives with the third tool result.
+    match: /慢推进|slow/i,
+    script: [
+      { text: '先列计划。', ...plan(steps(
+        ['in_progress', '找出所有文档'],
+        ['pending', '整理目录结构'],
+        ['pending', '汇总结果'],
+      )) },
+      { tool: 'glob', input: { pattern: '*.md' } },
+      { tool: 'glob', input: { pattern: '*.json' } },
+      { tool: 'glob', input: { pattern: 'docs/**' } },
+      advance,
+      advance,
+      { tool: 'wrap_up', input: { recap: '找到 3 份文档，目录结构已整理。' } },
+      { text: '整理完了。' },
+    ],
+  },
+  {
     match: /乱序|out of order/i,
     script: [
       plan(steps(['in_progress', '第一步'], ['pending', '第二步'], ['pending', '第三步'], ['pending', '第四步'])),
@@ -99,14 +118,18 @@ const sse = (res, payload) => res.write(`event: ${payload.type}\ndata: ${JSON.st
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // dsh folds the previous turn's last tool_result and the next prompt into one user
-// message, so a prompt is any user message carrying a text block.
+// message, so a prompt is any user message carrying a text block that is not one of
+// the plugin's reminder notes.
+const REMINDER = 'Task list check:'
+const isPromptText = (b) => b.type === 'text' && b.text.trim() && !b.text.includes(REMINDER)
+const blocksOf = (m) => (typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content)
+
 function promptAndStep(messages) {
   let promptIndex = -1
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (m.role !== 'user') continue
-    const blocks = typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content
-    if (blocks.some((b) => b.type === 'text' && b.text.trim())) { promptIndex = i; break }
+    if (blocksOf(m).some(isPromptText)) { promptIndex = i; break }
   }
   if (promptIndex < 0) return { prompt: '', step: 0 }
   const m = messages[promptIndex]
@@ -173,6 +196,8 @@ http.createServer((req, res) => {
       hasTodoWrite: tools.includes('todo_write'),
       hasUpdatePlan: tools.includes('update_plan'),
       systemHasGuidance: system.includes('# Task list and wrap-up'),
+      reminders: (request.messages ?? []).filter((m) => m.role === 'user')
+        .flatMap(blocksOf).filter((b) => b.type === 'text' && b.text.includes(REMINDER)).length,
       lastToolResult: lastToolResultText(request.messages ?? []),
       shape: (request.messages ?? []).slice(-3).map((m) =>
         `${m.role}:${typeof m.content === 'string' ? 'text' : m.content.map((b) => b.type).join('+')}`),

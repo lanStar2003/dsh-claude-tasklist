@@ -12,6 +12,11 @@ export const ICON_PATHS = {
   completed: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
 }
 
+// The in-progress step while the agent is running: a faint ring with a quarter arc
+// that tasklist.css spins (.dtl-spin).
+export const SPINNER =
+  '<circle cx="12" cy="12" r="10" opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10"/>'
+
 // Waiting-for-input ring: outline circle with a filled centre dot.
 export const WAIT_RING =
   '<circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>' +

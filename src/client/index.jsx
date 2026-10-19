@@ -3,7 +3,8 @@
 //   directly under the latest message.
 // - Once the turn ends, its final list, next-step box and waiting chip are drawn
 //   at the end of that turn (conversation.chat.turnTail), and stay there.
-// - The update_plan / wrap_up tool-call rows are hidden from the transcript.
+// - The update_plan / wrap_up tool-call rows are hidden from the transcript, and so
+//   are the host's "keep the list moving" notes (context rows from producer `tasklist`).
 
 import { useLayoutEffect, useRef } from 'react'
 import css from './tasklist.css'
@@ -13,6 +14,8 @@ import { NS, en, zh } from './locales.js'
 const PLUGIN_ID = 'dsh-claude-tasklist'
 const PROJECTION_KEY = 'tasklist'
 const HIDDEN_TOOLS = ['update_plan', 'wrap_up']
+/** Producer label dsh shows on context rows logged by this plugin's host half. */
+const REMINDER_KIND = 'tasklist'
 
 // Appended while the factory runs, so the host owns it and removes it on unload.
 if (typeof document !== 'undefined') {
@@ -58,6 +61,8 @@ export function apply(ctx) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key }, HiddenToolRow)
     }
   })
+
+  ctx.effect(() => hideReminderRows(), `${PLUGIN_ID}: hide reminder notes`)
 }
 
 /** The running turn's list, pinned above the composer. */
@@ -69,7 +74,7 @@ function LiveListDock({ useProjection, useSession, t }) {
   if (!entry || entry.steps.length === 0) return null
   return (
     <div className="dtl-root dtl-dock">
-      <TaskListCard steps={entry.steps} t={t} />
+      <TaskListCard steps={entry.steps} live t={t} />
     </div>
   )
 }
@@ -109,6 +114,29 @@ function HiddenToolRow() {
   const ref = useRef(null)
   useLayoutEffect(() => watchGroup(ref.current), [])
   return <span ref={ref} data-dtl-hidden-call="" hidden />
+}
+
+/**
+ * Context rows have no per-producer slot, so mark the label of each reminder row as
+ * it mounts; tasklist.css then drops the row's flow item like a hidden tool row.
+ */
+function hideReminderRows() {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return undefined
+  const LABEL = '[data-context-source]'
+  const mark = (label) => {
+    if (label.textContent === REMINDER_KIND) label.setAttribute('data-dtl-hidden-call', '')
+  }
+  const scan = (node) => {
+    if (node.nodeType !== 1) return
+    if (node.matches(LABEL)) mark(node)
+    else if (node.firstElementChild) node.querySelectorAll(LABEL).forEach(mark)
+  }
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) mutation.addedNodes.forEach(scan)
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  scan(document.body)
+  return () => observer.disconnect()
 }
 
 const GROUP = '[data-step-process]'

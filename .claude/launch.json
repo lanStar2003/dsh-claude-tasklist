@@ -25,6 +25,19 @@
         "3080"
       ],
       "port": 3080
+    },
+    {
+      "name": "dsh-web-020",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=.dev/dev-020.env",
+        ".dev/runtime-020/node_modules/@deepseek-ai/dsh/lib/bin.js",
+        "web",
+        "--no-open",
+        "--port",
+        "3081"
+      ],
+      "port": 3081
     }
   ]
 }

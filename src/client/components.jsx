@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ICON_PATHS, WAIT_RING } from './icons.js'
+import { ICON_PATHS, SPINNER, WAIT_RING } from './icons.js'
 
 function Svg({ markup, className, box = 24 }) {
   return (
@@ -7,15 +7,20 @@ function Svg({ markup, className, box = 24 }) {
   )
 }
 
-/** The task list card: one row per step, icon + text. */
-export function TaskListCard({ steps, t }) {
+/**
+ * The task list card: one row per step, icon + text. `live` is true while the agent
+ * runs: the in-progress step then spins.
+ */
+export function TaskListCard({ steps, live = false, t }) {
   if (steps.length === 0) return null
   return (
     <section className="dtl-card" aria-label={t('list.label')}>
       <ul className="dtl-steps">
         {steps.map((step, index) => (
           <li key={index} className="dtl-step" data-status={step.status}>
-            <Svg markup={ICON_PATHS[step.status]} className="dtl-icon" />
+            {live && step.status === 'in_progress'
+              ? <Svg markup={SPINNER} className="dtl-icon dtl-spin" />
+              : <Svg markup={ICON_PATHS[step.status]} className="dtl-icon" />}
             <span className="dtl-sr">{t(`status.${step.status}`)}: </span>
             <span className="dtl-step-text">{step.content}</span>
           </li>
