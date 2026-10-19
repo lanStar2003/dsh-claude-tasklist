@@ -9,32 +9,59 @@
 
 ## 安装
 
-要求：
+要求 dsh 0.2.0-rc.2 或之后的 0.2.x 版本（DSH Desktop 0.12.0 内置的就是 0.2.0-rc.2）。
 
-- dsh 0.2.0-rc.2 或之后的 0.2.x 版本（DSH Desktop 0.12.0 内置的就是 0.2.0-rc.2）
-- `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件；DSH Desktop 自带一份，在 `<dsh 主目录>\.desktop-bin`）
+插件以 tarball 的形式安装：`dist/dsh-claude-tasklist-<版本>.tgz`。装到别的电脑上，只要复制这一个文件过去。没有这个文件时先打包，见下面的「打包新版本」。
 
-先打包，再从 tarball 安装：
+**只装 tgz，不要装源码文件夹。** 填文件夹路径会走 `link:` 方式：DSH Desktop 自带的 pnpm 借 Electron 运行，跨盘建立的目录链接会损坏，而且坏链接在部分安全软件下删不掉，之后这个 profile 里的所有 pnpm 操作都会失败。tgz 是复制安装，没有这个问题。tgz 放在和 dsh 主目录同一个盘上最稳妥。
 
-```bash
-npm run build && pnpm pack --pack-destination dist
-```
+### 在 DSH Desktop 的界面里装
+
+1. 打开「插件」页，点「添加插件」。
+2. 填 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.2.0.tgz`，点「安装」，再点「立即启用」。
+3. 完全退出 Desktop 再打开。
+
+### 用命令行装（npm 安装的 dsh）
+
+需要 `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件）。
 
 ```bash
 dsh plugin --profile web add C:/path/to/dsh-claude-tasklist-0.2.0.tgz
 ```
 
-装好后重启 dsh。卸载：
+装好后重启 dsh。
+
+### 用 DSH Desktop 自带的 dsh 命令行装
+
+DSH Desktop 的 dsh 主目录是 `%APPDATA%\dsh-desktop\harness`，profile 是 `web`，自带的 pnpm 在主目录的 `.desktop-bin` 里。在 PowerShell 里运行（`$app` 换成 Desktop 的安装目录）：
+
+```powershell
+$app = "D:\software\DSH Desktop"
+$env:ELECTRON_RUN_AS_NODE = "1"
+$env:DSH_HOME = "$env:APPDATA\dsh-desktop\harness"
+$env:PATH = "$env:DSH_HOME\.desktop-bin;$env:PATH"
+& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add C:\path\to\dsh-claude-tasklist-0.2.0.tgz
+```
+
+一定要先设好 `DSH_HOME`，否则 dsh 会在 `~/.dsh` 另建一个空的主目录，插件装到那里去。装好后完全退出 Desktop 再打开。
+
+### 升级和卸载
+
+没有自动更新。升级时先卸载旧版，再按上面的方法装新版的 tgz。卸载可以在「插件」页里点，也可以用命令行：
 
 ```bash
 dsh plugin --profile web remove dsh-claude-tasklist
 ```
 
-### 装进 DSH Desktop
+### 打包新版本
 
-DSH Desktop 的 dsh 主目录是 `%APPDATA%\dsh-desktop\harness`，profile 是 `web`。命令行安装时把 `DSH_HOME` 设成这个目录，并把其中的 `.desktop-bin` 放到 PATH 最前面，让 Desktop 自带的 pnpm 来装。装好后完全退出 Desktop 再打开。
+改完代码后，先把 `package.json` 里的 `version` 加一，再在本目录运行：
 
-注意：**不要用指向另一个盘的本地文件夹（`link:`）安装。** Desktop 自带的 pnpm 借 Electron 运行，跨盘建立的目录链接会损坏，而且坏链接在部分安全软件下删不掉，之后这个 profile 里的所有 pnpm 操作都会失败。tarball 安装是复制文件，没有这个问题。tarball 放在和 dsh 主目录同一个盘上最稳妥。
+```bash
+npm install && npm run build && npm test && npm pack --pack-destination dist
+```
+
+`npm pack` 不会自动构建，所以 `npm run build` 不能省：网页端代码 `lib/client.js` 是构建出来的，而且随源码一起提交。
 
 ## 用起来是什么样
 
