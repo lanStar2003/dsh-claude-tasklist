@@ -13,6 +13,7 @@ import { PlanError, SCOPES, STATUSES } from '../core/plan.js'
 import { initialState, foldEvent, parseState, updatePlanStep, wrapUpStep } from '../core/state.js'
 import { SYSTEM_PROMPT_SECTION, UPDATE_PLAN_DESCRIPTION, WRAP_UP_DESCRIPTION } from '../core/prompt.js'
 import { DEFAULT_REMIND_AFTER_STEPS, isReminderPoint, progressReminder } from '../core/reminder.js'
+import { DEFAULT_LANGUAGE, checkLanguage, languageInstruction, languageRule, planTexts, wrapUpTexts } from '../core/language.js'
 
 export const name = 'tasklist'
 export const inject = ['tools', 'sessionProjections', 'systemPrompt']
@@ -24,6 +25,8 @@ const DEFAULTS = {
   promptOrder: 2450,
   /** Remind the model to move the list on after this many steps without an update; 0 turns it off. */
   remindAfterSteps: DEFAULT_REMIND_AFTER_STEPS,
+  /** Language of the steps and the next-step box: "zh-CN" (default), "zh-TW", any language name, or "auto" to follow the user. */
+  language: DEFAULT_LANGUAGE,
 }
 
 /** Source kind of the reminder notes; the web client hides rows with this producer. */
@@ -37,6 +40,9 @@ const textResult = { schema: { type: 'string' }, render: (_args, value) => [{ ty
 
 export function apply(ctx, rawConfig) {
   const config = readConfig(rawConfig)
+  const language = languageRule(config.language)
+  const languageLine = languageInstruction(language)
+  const withLanguage = (text) => (languageLine ? `${text}\n\n${languageLine}` : text)
 
   ctx.sessionProjections.register({
     key: PROJECTION_KEY,
@@ -57,7 +63,7 @@ export function apply(ctx, rawConfig) {
 
   ctx.tools.register(defineTool({
     name: 'update_plan',
-    description: UPDATE_PLAN_DESCRIPTION,
+    description: withLanguage(UPDATE_PLAN_DESCRIPTION),
     parameters: {
       items: {
         type: 'array',
@@ -66,7 +72,11 @@ export function apply(ctx, rawConfig) {
           type: 'object',
           additionalProperties: false,
           properties: {
-            content: { type: 'string', required: true, description: 'Short imperative phrase, at most ~7 words.' },
+            content: {
+              type: 'string',
+              required: true,
+              description: `Short imperative phrase, at most ~7 words${language ? `, in ${language.name}` : ''}.`,
+            },
             status: { type: 'string', required: true, enum: [...STATUSES] },
           },
         },
@@ -83,13 +93,16 @@ export function apply(ctx, rawConfig) {
     output: textResult,
     async execute(args, exec) {
       const { state, turn } = contextOf(exec, 'update_plan')
-      return guard(() => updatePlanStep(state, args, turn).result)
+      return guard(() => {
+        checkLanguage(language, planTexts(args))
+        return updatePlanStep(state, args, turn).result
+      })
     },
   }))
 
   ctx.tools.register(defineTool({
     name: 'wrap_up',
-    description: WRAP_UP_DESCRIPTION,
+    description: withLanguage(WRAP_UP_DESCRIPTION),
     parameters: {
       recap: { type: 'string', required: true, description: 'Two or three short sentences, at most 300 characters.' },
       ask: { type: 'string', description: 'One decision for the user, at most 100 characters; needs actions.' },
@@ -110,7 +123,10 @@ export function apply(ctx, rawConfig) {
     output: textResult,
     async execute(args, exec) {
       const { state, turn } = contextOf(exec, 'wrap_up')
-      const step = guard(() => wrapUpStep(state, args, turn))
+      const step = guard(() => {
+        checkLanguage(language, wrapUpTexts(args))
+        return wrapUpStep(state, args, turn)
+      })
       // A box that asks something ends the turn right after this result.
       if (step.ask) exec.concludeTurn()
       return step.result
@@ -121,7 +137,7 @@ export function apply(ctx, rawConfig) {
     name: 'tool:tasklist',
     order: config.promptOrder,
     interpolate: false,
-    text: ({ scope }) => (ctx.tools.get('update_plan', scope) === undefined ? '' : SYSTEM_PROMPT_SECTION),
+    text: ({ scope }) => (ctx.tools.get('update_plan', scope) === undefined ? '' : withLanguage(SYSTEM_PROMPT_SECTION)),
   })
 
   // Per agent: the turn and model step it is in, and the step of its last plan update.
@@ -172,6 +188,7 @@ function readConfig(raw) {
     if (typeof raw.hideBuiltinTodo === 'boolean') config.hideBuiltinTodo = raw.hideBuiltinTodo
     if (Number.isFinite(raw.promptOrder)) config.promptOrder = raw.promptOrder
     if (Number.isInteger(raw.remindAfterSteps) && raw.remindAfterSteps >= 0) config.remindAfterSteps = raw.remindAfterSteps
+    if (typeof raw.language === 'string') config.language = raw.language
   }
   return config
 }

@@ -5,6 +5,8 @@
       config:
         # Hide dsh's own todo_write from the model so it keeps one list, not two.
         hideBuiltinTodo: true
+        # Steps and the next-step box are written in this language ("auto" follows the user).
+        language: zh-CN
 
 # Stepping through a plan calls `update_plan {"advance": true}` several times in a
 # row by design; keep the repeat-call reminder from flagging it. A patch replaces

@@ -5,7 +5,7 @@
 - **实时任务清单**：模型先列出完整计划，再开始干活，边做边推进。正在做的那一步在转圈，待办是虚线圆，做完的打勾；一轮停在半路时，没做完的那一步是带三个点的圆。
 - **下一步框**：一轮结束时，模型写两三句总结。需要你拿主意时，框里还有一个问题和一两个按钮，点按钮就等于你回复了这句话。模型必须等你回答时，这一轮末尾会显示「需要您的输入」。
 
-插件不带模型，用的是 dsh 会话里已经选好的模型。
+插件不带模型，用的是 dsh 会话里已经选好的模型。清单和下一步框一律用简体中文，不管你用什么语言提问、代码是什么语言；可以在设置里改。
 
 ## 安装
 
@@ -14,7 +14,7 @@
 插件以 tarball（tgz）的形式安装。每个版本的 tgz 都挂在 [Releases](https://github.com/lanStar2003/dsh-claude-tasklist/releases) 页上，直接填它的网址就能装，哪台电脑都一样，不用复制文件。当前版本的网址：
 
 ```text
-https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.3.0/dsh-claude-tasklist-0.3.0.tgz
+https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
 ```
 
 下载到本地的 tgz，或自己打包的 `dist/dsh-claude-tasklist-<版本>.tgz`，也能装：下面填网址的地方改填它的绝对路径。
@@ -24,7 +24,7 @@ https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.3.0/dsh-
 ### 在 DSH Desktop 的界面里装
 
 1. 打开「插件」页，点「添加插件」。
-2. 粘贴上面的网址（或本地 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.3.0.tgz`），点「安装」，再点「立即启用」。
+2. 粘贴上面的网址（或本地 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.4.0.tgz`），点「安装」，再点「立即启用」。
 3. 完全退出 Desktop 再打开。
 
 ### 用命令行装（npm 安装的 dsh）
@@ -32,7 +32,7 @@ https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.3.0/dsh-
 需要 `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件）。
 
 ```bash
-dsh plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.3.0/dsh-claude-tasklist-0.3.0.tgz
+dsh plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
 ```
 
 装好后重启 dsh。
@@ -46,7 +46,7 @@ $app = "D:\software\DSH Desktop"
 $env:ELECTRON_RUN_AS_NODE = "1"
 $env:DSH_HOME = "$env:APPDATA\dsh-desktop\harness"
 $env:PATH = "$env:DSH_HOME\.desktop-bin;$env:PATH"
-& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.3.0/dsh-claude-tasklist-0.3.0.tgz
+& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
 ```
 
 一定要先设好 `DSH_HOME`，否则 dsh 会在 `~/.dsh` 另建一个空的主目录，插件装到那里去。装好后完全退出 Desktop 再打开。
@@ -64,7 +64,7 @@ dsh plugin --profile web remove dsh-claude-tasklist
 改完代码后，先把 `package.json` 里的 `version` 加一，运行 `npm run build`，连同构建出来的 `lib/client.js` 一起提交到 main，再推一个同版本号、带 `v` 的标签，例如：
 
 ```bash
-git push origin main && git tag v0.3.1 && git push origin v0.3.1
+git push origin main && git tag v0.4.1 && git push origin v0.4.1
 ```
 
 GitHub Actions 的 Release 工作流（`.github/workflows/release.yml`）会运行 `npm ci`、`npm test`、`npm run build`、`npm pack`，把 `dsh-claude-tasklist-<版本>.tgz` 挂到这个标签的 Release 上，网址就是上面那种格式。标签和 `version` 对不上，或者提交的 `lib/client.js` 不是最新的构建结果，工作流会失败、不发布。
@@ -89,6 +89,8 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
 
 模型有时埋头干活、忘了推进清单。某一步连续 3 个模型步骤都没更新时，插件会在工具结果后面给模型一条简短提醒，让它把做完的步骤勾掉。提醒只有模型看得到，对话记录里不显示。
 
+清单的每一步、下一步框的总结、问题和按钮都必须是简体中文。模型交上来的文字里一个汉字都没有时（比如 `Fix typos`），这次调用会被退回，模型改成中文重发，所以界面上不会出现英文清单。代码名、路径可以夹在中文里，例如「运行 npm test」。新开的会话里，模型从一开始就会被告知用中文；更新插件前就开着的会话，靠这个退回机制保证。
+
 这一轮结束后，最终清单和下一步框留在这一轮的末尾，翻聊天记录时还在原处。刷新页面、重启 dsh 都会原样恢复。
 
 `update_plan` 和 `wrap_up` 是记账用的工具调用，不出现在对话记录里，和原版一样。
@@ -103,6 +105,7 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
 | 下一步框的外观 | — | 按清单卡片和同屏按钮的测量值设计 | 目前没有原版下一步框的截图，拿到后再对齐 |
 | 发出计划的时机 | 计划和第一个工具调用一起发出 | 计划单独先发，下一条消息才开始执行 | 让清单先于任何执行出现；dsh 会先显示正在生成的工具调用，一起发出时看起来像边执行边列清单 |
 | 推进提醒 | 没有 | 某一步连续 3 个模型步骤没推进时提醒模型 | DeepSeek 模型常常做完了才一次性勾掉，清单就一直停在第一步 |
+| 清单的语言 | 跟随用户的语言 | 默认一律简体中文，不是中文的会被退回 | 按使用者要求；可用 `language` 设置改 |
 
 和 [dsh-claude-style](https://github.com/Nwflower/dsh-claude-style) 主题一起用时，页面底色、字体（Inter）都跟随主题，清单与原版更接近。
 
@@ -125,6 +128,7 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
     hideBuiltinTodo: true   # 对模型隐藏 dsh 自带的 todo_write，避免两份清单
     promptOrder: 2450       # 使用说明在系统提示词里的位置
     remindAfterSteps: 3     # 某一步连续这么多个模型步骤没推进时提醒模型；0 表示不提醒
+    language: zh-CN         # 清单和下一步框的语言：zh-CN、zh-TW、其他语言名（如 English），或 auto 跟随用户
 ```
 
 插件还给 dsh 自带的「连续重复调用提醒」加了排除项，让连续几次推进清单不会被当成重复调用。
@@ -143,10 +147,11 @@ npm test             # 状态推进与折叠逻辑的单元测试
 | `src/core/state.js` | 会话投影：按轮记录清单和下一步框，识别用户的回答 |
 | `src/core/prompt.js` | 给模型看的工具说明和系统提示词 |
 | `src/core/reminder.js` | 推进提醒：什么时候提醒、提醒说什么 |
+| `src/core/language.js` | 清单语言：给模型的要求，以及退回非中文内容的检查 |
 | `src/host/index.js` | dsh 后端：注册两个工具、投影、系统提示词、推进提醒 |
 | `src/client/` | dsh 网页端：清单卡片、下一步框、状态标签、样式 |
 | `dev/mock-llm.mjs` | 本地模拟模型，按脚本调用两个工具，不需要 API key |
 | `docs/SPEC.md` | 从原版测量出的行为与外观规格 |
 | `reference/` | 原版截图 |
 
-不用 API key 的端到端测试：先运行 `node dev/mock-llm.mjs`，再把 `DEEPSEEK_BASE_URL=http://127.0.0.1:8765` 和任意 `DEEPSEEK_API_KEY` 设给 dsh。然后在对话里发「演示」「慢推进」「改计划」「乱序」「故意传错误参数」，可以分别看到对应的场景；「慢推进」会在第 3 次工具调用后触发推进提醒。
+不用 API key 的端到端测试：先运行 `node dev/mock-llm.mjs`，再把 `DEEPSEEK_BASE_URL=http://127.0.0.1:8765` 和任意 `DEEPSEEK_API_KEY` 设给 dsh。然后在对话里发「演示」「慢推进」「改计划」「乱序」「故意传错误参数」，可以分别看到对应的场景；「慢推进」会在第 3 次工具调用后触发推进提醒，「故意传错误参数」里有一份英文计划会被退回。

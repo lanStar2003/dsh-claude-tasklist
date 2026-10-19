@@ -105,8 +105,9 @@ const SCENARIOS = [
     match: /错误|invalid/i,
     script: [
       { tool: 'update_plan', input: { advance: true } },
+      plan(steps(['in_progress', 'Read the config'], ['pending', '改端口'])),
       plan(steps(['in_progress', '纠正后的计划'])),
-      { tool: 'wrap_up', input: { recap: 'x'.repeat(301) } },
+      { tool: 'wrap_up', input: { recap: '字'.repeat(301) } },
       { tool: 'wrap_up', input: { recap: '纠正后完成。' } },
       { text: '好了。' },
     ],
@@ -196,6 +197,7 @@ http.createServer((req, res) => {
       hasTodoWrite: tools.includes('todo_write'),
       hasUpdatePlan: tools.includes('update_plan'),
       systemHasGuidance: system.includes('# Task list and wrap-up'),
+      systemHasLanguage: system.includes('Simplified Chinese (简体中文)'),
       reminders: (request.messages ?? []).filter((m) => m.role === 'user')
         .flatMap(blocksOf).filter((b) => b.type === 'text' && b.text.includes(REMINDER)).length,
       lastToolResult: lastToolResultText(request.messages ?? []),
