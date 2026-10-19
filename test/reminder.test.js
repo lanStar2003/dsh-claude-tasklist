@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { foldEvent, initialState } from '../src/core/state.js'
-import { isReminderPoint, progressReminder } from '../src/core/reminder.js'
+import { isReminderPoint, missingPlanReminder, progressReminder } from '../src/core/reminder.js'
 
 const fold = (events, state = initialState()) => events.reduce((s, e) => foldEvent(s, e), state)
 
@@ -50,4 +50,19 @@ test('a logged reminder note is not taken as the user answering the box', () => 
   ])
   const note = { type: 'user/message', data: { role: 'user', content: [{ type: 'text', text: 'Task list check: …' }], source: { kind: 'tasklist', form: 'notice', summary: 'x' } } }
   assert.equal(foldEvent(asked, note), asked)
+})
+
+test('a turn running tools without a plan is asked for one', () => {
+  const s = fold([turnStart(1)])
+  const note = missingPlanReminder(s, 1)
+  assert.match(note.text, /no task list yet/)
+  assert.match(note.text, /tools\.update_plan/)
+  assert.equal(note.summary, 'Task list: no plan yet')
+})
+
+test('no plan request once the turn has a list or has wrapped up', () => {
+  assert.equal(missingPlanReminder(fold([turnStart(1), ...plan(1, 'in_progress')]), 1), undefined)
+  assert.equal(missingPlanReminder(fold([turnStart(1), ...call(1, 'wrap_up', { recap: '好了。' })]), 1), undefined)
+  // a plan from an earlier turn does not count for this one
+  assert.notEqual(missingPlanReminder(fold([turnStart(1), ...plan(1, 'in_progress'), turnStart(2)]), 2), undefined)
 })

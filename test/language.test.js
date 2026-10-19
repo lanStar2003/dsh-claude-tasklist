@@ -17,7 +17,7 @@ test('the default asks for Simplified Chinese; auto and empty follow the user', 
   assert.deepEqual(languageRule('English'), { name: 'English', chinese: false })
   assert.equal(languageRule('auto'), undefined)
   assert.equal(languageRule(''), undefined)
-  assert.equal(languageInstruction(undefined), '')
+  assert.match(languageInstruction(undefined), /in the user's language/)
   assert.match(languageInstruction(languageRule('zh-CN')), /in Simplified Chinese \(简体中文\)/)
 })
 

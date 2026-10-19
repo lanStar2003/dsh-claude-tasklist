@@ -144,9 +144,12 @@ const ITEM = '[data-chat-flow-kind]'
 const HIDDEN_GROUP_ATTR = 'data-dtl-hidden-group'
 const watchedGroups = new WeakMap()
 
+/** Mirrors tasklist.css: a code-mode run_code item is never hidden as a whole. */
+const isHiddenItem = (item) => item.querySelector('[data-dtl-hidden-call]') !== null && item.querySelector('[data-subcalls]') === null
+
 function refreshGroup(group) {
   const items = group.querySelectorAll(ITEM)
-  const onlyHidden = items.length > 0 && Array.from(items).every((item) => item.querySelector('[data-dtl-hidden-call]'))
+  const onlyHidden = items.length > 0 && Array.from(items).every(isHiddenItem)
   group.toggleAttribute(HIDDEN_GROUP_ATTR, onlyHidden)
 }
 

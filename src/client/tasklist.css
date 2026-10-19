@@ -43,8 +43,14 @@ body[data-ds-dark-theme] .dtl-root,
 
 /* ---------- hidden bookkeeping calls ---------- */
 
-/* The flow item that holds an update_plan / wrap_up row (see HiddenToolRow). */
-[data-chat-flow-kind]:has([data-dtl-hidden-call]) {
+/* The flow item that holds an update_plan / wrap_up row (see HiddenToolRow). A
+   run_code item (code mode) holds its calls under [data-subcalls]: it stays, since
+   its program may do real work, and only the bookkeeping call rows inside go. */
+[data-chat-flow-kind]:has([data-dtl-hidden-call]):not(:has([data-subcalls])) {
+  display: none !important;
+}
+
+[data-subcalls] [data-chat-call-id]:has([data-dtl-hidden-call]) {
   display: none !important;
 }
 

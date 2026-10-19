@@ -65,6 +65,6 @@ export function wrapUpTexts(args) {
 
 /** The line added to the tool descriptions and the system-prompt section. */
 export function languageInstruction(rule) {
-  if (!rule) return ''
+  if (!rule) return 'Write the task-list steps and the next-step box in the user\'s language.'
   return `Write the task-list steps and everything in the next-step box (recap, ask, button labels and messages) in ${rule.name}, whatever language the request, the code or your own reasoning is in.`
 }

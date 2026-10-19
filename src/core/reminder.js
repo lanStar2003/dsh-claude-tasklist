@@ -15,6 +15,28 @@ export function isReminderPoint(/** @type {number} */ since, /** @type {number} 
   return every > 0 && since >= every && since % every === 0
 }
 
+const TAIL = ' The user follows your progress on this list, not in your messages. Do not mention this note.'
+
+/**
+ * The note for a turn that has started running tools without a plan, or undefined
+ * when the turn already has a list or has wrapped up.
+ * @param {import('./state.js').TasklistState} state
+ * @param {number} turn
+ * @returns {{ text: string, summary: string } | undefined}
+ */
+export function missingPlanReminder(state, turn) {
+  const entry = entryForTurn(state, turn)
+  if (entry && (entry.steps.length > 0 || entry.wrapUp)) return undefined
+  return {
+    text:
+      'Task list check: this turn is running tools but has no task list yet. If the request needs more than ' +
+      'this one tool call, send update_plan with the whole plan now, as a call of its own (in code mode: a ' +
+      'run_code whose program only calls tools.update_plan), before any other tool. If you are ready to answer, ' +
+      'ignore this.' + TAIL,
+    summary: 'Task list: no plan yet',
+  }
+}
+
 /**
  * The note for `turn`, or undefined when its list needs none (no plan this turn,
  * the turn already wrapped up, or every step is done).
@@ -30,7 +52,7 @@ export function progressReminder(state, turn, since) {
   const n = steps.length
   if (steps.every((s) => s.status === 'completed')) return undefined
   const current = steps.findIndex((s) => s.status === 'in_progress')
-  const tail = ' The user follows your progress on this list, not in your messages. Do not mention this note.'
+  const tail = TAIL
   if (current < 0) {
     const done = steps.filter((s) => s.status === 'completed').length
     return {

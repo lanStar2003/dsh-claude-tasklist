@@ -12,7 +12,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { PlanError, SCOPES, STATUSES } from '../core/plan.js'
 import { initialState, foldEvent, parseState, updatePlanStep, wrapUpStep } from '../core/state.js'
 import { SYSTEM_PROMPT_SECTION, UPDATE_PLAN_DESCRIPTION, WRAP_UP_DESCRIPTION } from '../core/prompt.js'
-import { DEFAULT_REMIND_AFTER_STEPS, isReminderPoint, progressReminder } from '../core/reminder.js'
+import { DEFAULT_REMIND_AFTER_STEPS, isReminderPoint, missingPlanReminder, progressReminder } from '../core/reminder.js'
 import { DEFAULT_LANGUAGE, checkLanguage, languageInstruction, languageRule, planTexts, wrapUpTexts } from '../core/language.js'
 
 export const name = 'tasklist'
@@ -146,7 +146,7 @@ export function apply(ctx, rawConfig) {
   ctx.on('agent/pre-step', (payload, next) => {
     let track = progress.get(payload.agent)
     if (!track || track.turn !== payload.turn) {
-      track = { turn: payload.turn, step: payload.step, planStep: undefined, remindedStep: undefined }
+      track = { turn: payload.turn, step: payload.step, planStep: undefined, remindedStep: undefined, askedForPlan: false }
       progress.set(payload.agent, track)
     }
     track.step = payload.step
@@ -162,16 +162,37 @@ export function apply(ctx, rawConfig) {
       return downstream
     }
     // A run_code sub-dispatch: the outer run_code result carries any note.
-    if (exec.parent !== undefined) return downstream
-    if (track.planStep === undefined || track.remindedStep === track.step) return downstream
-    const since = track.step - track.planStep
-    if (!isReminderPoint(since, config.remindAfterSteps)) return downstream
-    const state = exec.agent.session ? ctx.sessionProjections.stateOf(exec.agent.session, PROJECTION_KEY) : undefined
-    const note = state ? progressReminder(state, track.turn, since) : undefined
+    if (exec.parent !== undefined || config.remindAfterSteps <= 0) return downstream
+    if (!planToolVisible(exec.agent)) return downstream
+    const stateNow = () =>
+      exec.agent.session ? ctx.sessionProjections.stateOf(exec.agent.session, PROJECTION_KEY) : undefined
+    let note
+    if (track.planStep === undefined) {
+      // Working without a plan: ask for one once, after the first tool call.
+      if (track.askedForPlan) return downstream
+      track.askedForPlan = true
+      const state = stateNow()
+      note = state ? missingPlanReminder(state, track.turn) : undefined
+    } else {
+      if (track.remindedStep === track.step) return downstream
+      const since = track.step - track.planStep
+      if (!isReminderPoint(since, config.remindAfterSteps)) return downstream
+      const state = stateNow()
+      note = state ? progressReminder(state, track.turn, since) : undefined
+      if (note) track.remindedStep = track.step
+    }
     if (!note) return downstream
-    track.remindedStep = track.step
     return { ...downstream, additionalContexts: [reminderMessage(note), ...(downstream.additionalContexts ?? [])] }
   })
+
+  /** Whether this agent can call update_plan at all (a restricted subagent may not). */
+  const planToolVisible = (agent) => {
+    try {
+      return ctx.tools.get('update_plan', agent) !== undefined
+    } catch {
+      return true
+    }
+  }
 
   if (config.hideBuiltinTodo) {
     ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {

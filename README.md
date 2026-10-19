@@ -14,7 +14,7 @@
 插件以 tarball（tgz）的形式安装。每个版本的 tgz 都挂在 [Releases](https://github.com/lanStar2003/dsh-claude-tasklist/releases) 页上，直接填它的网址就能装，哪台电脑都一样，不用复制文件。当前版本的网址：
 
 ```text
-https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
+https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.1/dsh-claude-tasklist-0.4.1.tgz
 ```
 
 下载到本地的 tgz，或自己打包的 `dist/dsh-claude-tasklist-<版本>.tgz`，也能装：下面填网址的地方改填它的绝对路径。
@@ -24,7 +24,7 @@ https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-
 ### 在 DSH Desktop 的界面里装
 
 1. 打开「插件」页，点「添加插件」。
-2. 粘贴上面的网址（或本地 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.4.0.tgz`），点「安装」，再点「立即启用」。
+2. 粘贴上面的网址（或本地 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.4.1.tgz`），点「安装」，再点「立即启用」。
 3. 完全退出 Desktop 再打开。
 
 ### 用命令行装（npm 安装的 dsh）
@@ -32,7 +32,7 @@ https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-
 需要 `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件）。
 
 ```bash
-dsh plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
+dsh plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.1/dsh-claude-tasklist-0.4.1.tgz
 ```
 
 装好后重启 dsh。
@@ -46,7 +46,7 @@ $app = "D:\software\DSH Desktop"
 $env:ELECTRON_RUN_AS_NODE = "1"
 $env:DSH_HOME = "$env:APPDATA\dsh-desktop\harness"
 $env:PATH = "$env:DSH_HOME\.desktop-bin;$env:PATH"
-& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.0/dsh-claude-tasklist-0.4.0.tgz
+& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.4.1/dsh-claude-tasklist-0.4.1.tgz
 ```
 
 一定要先设好 `DSH_HOME`，否则 dsh 会在 `~/.dsh` 另建一个空的主目录，插件装到那里去。装好后完全退出 Desktop 再打开。
@@ -64,7 +64,7 @@ dsh plugin --profile web remove dsh-claude-tasklist
 改完代码后，先把 `package.json` 里的 `version` 加一，运行 `npm run build`，连同构建出来的 `lib/client.js` 一起提交到 main，再推一个同版本号、带 `v` 的标签，例如：
 
 ```bash
-git push origin main && git tag v0.4.1 && git push origin v0.4.1
+git push origin main && git tag v0.4.2 && git push origin v0.4.2
 ```
 
 GitHub Actions 的 Release 工作流（`.github/workflows/release.yml`）会运行 `npm ci`、`npm test`、`npm run build`、`npm pack`，把 `dsh-claude-tasklist-<版本>.tgz` 挂到这个标签的 Release 上，网址就是上面那种格式。标签和 `version` 对不上，或者提交的 `lib/client.js` 不是最新的构建结果，工作流会失败、不发布。
@@ -87,7 +87,9 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
 ◌ 检查所有链接
 ```
 
-模型有时埋头干活、忘了推进清单。某一步连续 3 个模型步骤都没更新时，插件会在工具结果后面给模型一条简短提醒，让它把做完的步骤勾掉。提醒只有模型看得到，对话记录里不显示。
+模型有时埋头干活、忘了推进清单。某一步连续 3 个模型步骤都没更新时，插件会在工具结果后面给模型一条简短提醒，让它把做完的步骤勾掉。模型没列计划就先调用了工具时，第一次工具调用之后也会提醒它先列计划。提醒只有模型看得到，对话记录里不显示。
+
+**PTC 模式**（输入框下方选「PTC 模式」）下，模型只能直接调用 `run_code`，别的工具都在 `run_code` 的程序里通过 `tools.xxx()` 调用。清单照样工作：模型用一个只含 `tools.update_plan(...)` 的 `run_code` 先列计划，之后在每段程序开头推进。对话记录里只隐藏 `update_plan` / `wrap_up` 这两行子调用，`run_code` 本身那一行保留，因为程序里可能还做了别的事。
 
 清单的每一步、下一步框的总结、问题和按钮都必须是简体中文。模型交上来的文字里一个汉字都没有时（比如 `Fix typos`），这次调用会被退回，模型改成中文重发，所以界面上不会出现英文清单。代码名、路径可以夹在中文里，例如「运行 npm test」。新开的会话里，模型从一开始就会被告知用中文；更新插件前就开着的会话，靠这个退回机制保证。
 
@@ -104,7 +106,7 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
 | 下一步框的应用按钮 | 有提交、开 PR、合并等按钮 | 只有回复按钮 | 那些是 Claude 桌面版自己的功能，dsh 没有对应能力 |
 | 下一步框的外观 | — | 按清单卡片和同屏按钮的测量值设计 | 目前没有原版下一步框的截图，拿到后再对齐 |
 | 发出计划的时机 | 计划和第一个工具调用一起发出 | 计划单独先发，下一条消息才开始执行 | 让清单先于任何执行出现；dsh 会先显示正在生成的工具调用，一起发出时看起来像边执行边列清单 |
-| 推进提醒 | 没有 | 某一步连续 3 个模型步骤没推进时提醒模型 | DeepSeek 模型常常做完了才一次性勾掉，清单就一直停在第一步 |
+| 推进提醒 | 没有 | 某一步连续 3 个模型步骤没推进时提醒模型；没列计划就开始调用工具时，第一次调用后提醒它先列计划 | DeepSeek 模型常常做完了才一次性勾掉，清单就一直停在第一步；PTC 模式下还常常不列计划直接干活 |
 | 清单的语言 | 跟随用户的语言 | 默认一律简体中文，不是中文的会被退回 | 按使用者要求；可用 `language` 设置改 |
 
 和 [dsh-claude-style](https://github.com/Nwflower/dsh-claude-style) 主题一起用时，页面底色、字体（Inter）都跟随主题，清单与原版更接近。
@@ -127,7 +129,7 @@ npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-des
   config:
     hideBuiltinTodo: true   # 对模型隐藏 dsh 自带的 todo_write，避免两份清单
     promptOrder: 2450       # 使用说明在系统提示词里的位置
-    remindAfterSteps: 3     # 某一步连续这么多个模型步骤没推进时提醒模型；0 表示不提醒
+    remindAfterSteps: 3     # 某一步连续这么多个模型步骤没推进时提醒模型；0 表示关掉所有提醒
     language: zh-CN         # 清单和下一步框的语言：zh-CN、zh-TW、其他语言名（如 English），或 auto 跟随用户
 ```
 
@@ -154,4 +156,4 @@ npm test             # 状态推进与折叠逻辑的单元测试
 | `docs/SPEC.md` | 从原版测量出的行为与外观规格 |
 | `reference/` | 原版截图 |
 
-不用 API key 的端到端测试：先运行 `node dev/mock-llm.mjs`，再把 `DEEPSEEK_BASE_URL=http://127.0.0.1:8765` 和任意 `DEEPSEEK_API_KEY` 设给 dsh。然后在对话里发「演示」「慢推进」「改计划」「乱序」「故意传错误参数」，可以分别看到对应的场景；「慢推进」会在第 3 次工具调用后触发推进提醒，「故意传错误参数」里有一份英文计划会被退回。
+不用 API key 的端到端测试：先运行 `node dev/mock-llm.mjs`，再把 `DEEPSEEK_BASE_URL=http://127.0.0.1:8765` 和任意 `DEEPSEEK_API_KEY` 设给 dsh。然后在对话里发「演示」「慢推进」「改计划」「乱序」「故意传错误参数」，可以分别看到对应的场景；在 PTC 模式下发「代码模式」，可以看到先干活后被提醒列计划的流程；「慢推进」会在第 3 次工具调用后触发推进提醒，「故意传错误参数」里有一份英文计划会被退回。

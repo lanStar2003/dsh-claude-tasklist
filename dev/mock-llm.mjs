@@ -92,6 +92,18 @@ const SCENARIOS = [
     ],
   },
   {
+    // Code mode (the PTC agent preset): every tool goes through run_code. The first
+    // program runs a tool before any plan, so the host asks for one.
+    match: /代码模式|ptc/i,
+    script: [
+      { tool: 'run_code', input: { description: '先看看有哪些文档', code: "const r = await tools.glob({ pattern: '*.md' });\nconsole.log(JSON.stringify(r));" } },
+      { tool: 'run_code', input: { description: '列出计划', code: "await tools.update_plan({ items: [{ content: '找出所有文档', status: 'in_progress' }, { content: '整理目录结构', status: 'pending' }], scope: 'first_task' });" } },
+      { tool: 'run_code', input: { description: '整理目录', code: "await tools.update_plan({ advance: true });\nconst r = await tools.glob({ pattern: 'docs/**' });\nconsole.log(JSON.stringify(r));" } },
+      { tool: 'run_code', input: { description: '收尾', code: "await tools.wrap_up({ recap: '代码模式下清单正常推进，文档目录已整理。' });" } },
+      { text: '完成。' },
+    ],
+  },
+  {
     match: /乱序|out of order/i,
     script: [
       plan(steps(['in_progress', '第一步'], ['pending', '第二步'], ['pending', '第三步'], ['pending', '第四步'])),
