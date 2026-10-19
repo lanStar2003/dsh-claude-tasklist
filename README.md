@@ -11,14 +11,20 @@
 
 要求 dsh 0.2.0-rc.2 或之后的 0.2.x 版本（DSH Desktop 0.12.0 内置的就是 0.2.0-rc.2）。
 
-插件以 tarball 的形式安装：`dist/dsh-claude-tasklist-<版本>.tgz`。装到别的电脑上，只要复制这一个文件过去。没有这个文件时先打包，见下面的「打包新版本」。
+插件以 tarball（tgz）的形式安装。每个版本的 tgz 都挂在 [Releases](https://github.com/lanStar2003/dsh-claude-tasklist/releases) 页上，直接填它的网址就能装，哪台电脑都一样，不用复制文件。当前版本的网址：
 
-**只装 tgz，不要装源码文件夹。** 填文件夹路径会走 `link:` 方式：DSH Desktop 自带的 pnpm 借 Electron 运行，跨盘建立的目录链接会损坏，而且坏链接在部分安全软件下删不掉，之后这个 profile 里的所有 pnpm 操作都会失败。tgz 是复制安装，没有这个问题。tgz 放在和 dsh 主目录同一个盘上最稳妥。
+```text
+https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.2.0/dsh-claude-tasklist-0.2.0.tgz
+```
+
+下载到本地的 tgz，或自己打包的 `dist/dsh-claude-tasklist-<版本>.tgz`，也能装：下面填网址的地方改填它的绝对路径。
+
+**只装 tgz，不要装源码文件夹。** 填文件夹路径会走 `link:` 方式：DSH Desktop 自带的 pnpm 借 Electron 运行，跨盘建立的目录链接会损坏，而且坏链接在部分安全软件下删不掉，之后这个 profile 里的所有 pnpm 操作都会失败。tgz（网址或文件）是复制安装，没有这个问题。本地的 tgz 放在和 dsh 主目录同一个盘上最稳妥。
 
 ### 在 DSH Desktop 的界面里装
 
 1. 打开「插件」页，点「添加插件」。
-2. 填 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.2.0.tgz`，点「安装」，再点「立即启用」。
+2. 粘贴上面的网址（或本地 tgz 的绝对路径，例如 `C:\Users\<你>\Downloads\dsh-claude-tasklist-0.2.0.tgz`），点「安装」，再点「立即启用」。
 3. 完全退出 Desktop 再打开。
 
 ### 用命令行装（npm 安装的 dsh）
@@ -26,7 +32,7 @@
 需要 `pnpm` 在 PATH 上（`dsh plugin` 靠它安装插件）。
 
 ```bash
-dsh plugin --profile web add C:/path/to/dsh-claude-tasklist-0.2.0.tgz
+dsh plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.2.0/dsh-claude-tasklist-0.2.0.tgz
 ```
 
 装好后重启 dsh。
@@ -40,28 +46,36 @@ $app = "D:\software\DSH Desktop"
 $env:ELECTRON_RUN_AS_NODE = "1"
 $env:DSH_HOME = "$env:APPDATA\dsh-desktop\harness"
 $env:PATH = "$env:DSH_HOME\.desktop-bin;$env:PATH"
-& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add C:\path\to\dsh-claude-tasklist-0.2.0.tgz
+& "$app\DSH Desktop.exe" "$app\resources\app.asar\node_modules\@deepseek-ai\dsh\lib\bin.js" plugin --profile web add https://github.com/lanStar2003/dsh-claude-tasklist/releases/download/v0.2.0/dsh-claude-tasklist-0.2.0.tgz
 ```
 
 一定要先设好 `DSH_HOME`，否则 dsh 会在 `~/.dsh` 另建一个空的主目录，插件装到那里去。装好后完全退出 Desktop 再打开。
 
 ### 升级和卸载
 
-没有自动更新。升级时先卸载旧版，再按上面的方法装新版的 tgz。卸载可以在「插件」页里点，也可以用命令行：
+没有自动更新。升级时先卸载旧版，再按上面的方法装新版：在 Releases 页复制新版 tgz 的网址（网址里的两处版本号都是新版的）。卸载可以在「插件」页里点，也可以用命令行：
 
 ```bash
 dsh plugin --profile web remove dsh-claude-tasklist
 ```
 
-### 打包新版本
+### 发布新版本
 
-改完代码后，先把 `package.json` 里的 `version` 加一，再在本目录运行：
+改完代码后，先把 `package.json` 里的 `version` 加一，运行 `npm run build`，连同构建出来的 `lib/client.js` 一起提交到 main，再推一个同版本号、带 `v` 的标签，例如：
 
 ```bash
-npm install && npm run build && npm test && npm pack --pack-destination dist
+git push origin main && git tag v0.2.1 && git push origin v0.2.1
 ```
 
-`npm pack` 不会自动构建，所以 `npm run build` 不能省：网页端代码 `lib/client.js` 是构建出来的，而且随源码一起提交。
+GitHub Actions 的 Release 工作流（`.github/workflows/release.yml`）会运行 `npm ci`、`npm test`、`npm run build`、`npm pack`，把 `dsh-claude-tasklist-<版本>.tgz` 挂到这个标签的 Release 上，网址就是上面那种格式。标签和 `version` 对不上，或者提交的 `lib/client.js` 不是最新的构建结果，工作流会失败、不发布。
+
+只在本地打包、不发布时，在本目录运行：
+
+```bash
+npm install && npm run build && npm test && mkdir -p dist && npm pack --pack-destination dist
+```
+
+`npm pack` 不会自动构建，所以 `npm run build` 不能省：网页端代码 `lib/client.js` 是构建出来的，而且随源码一起提交，因为 `dsh plugin add` 装插件时从不构建。
 
 ## 用起来是什么样
 
